@@ -17,11 +17,13 @@ from sensor_config import friendly, hostile
 
 
 class TFNaiveBayesClassifier:
+    """Creates and makes predictions with a niave bayesian classifier"""
     dists = None
 
     def defineClasses(self, mean, sD):
-        # takes in matrix of class x features size for mean and 
-        #standard deviation
+        """ Takes in matrix of shape (class x features) for mean and 
+            standard deviation and ads the resulting nodes to the model"""
+
         mean = tf.convert_to_tensor(mean, dtype = 'float64')
         sD   = tf.convert_to_tensor(sD,   dtype = 'float64')
 
@@ -29,36 +31,49 @@ class TFNaiveBayesClassifier:
 
 
     def predict(self, X):
+        """ Retrun class predictions for datta X of size 
+            (objects X Features)."""
+
         assert self.dists is not None
 
         nb_classes, nb_features = map(int, self.dists.scale.shape)
 
+        # Create grid for all values in figure
+        spaceVals = tf.reshape(
+                tf.tile(X, [1, nb_classes]), [-1, nb_classes, nb_features])
+
         # Conditional probabilities log P(x|c) with shape
         # (nb_samples, nb_classes)
         cond_probs = tf.reduce_sum(
-            self.dists.log_prob(
-                tf.reshape(
-                    tf.tile(X, [1, nb_classes]), [-1, nb_classes, nb_features])),
-            axis=2)
+            self.dists.log_prob(spaceVals), axis=2)
 
-        # uniform priors
+        # Uniform priors
         priors = np.log(np.array([1. / nb_classes] * nb_classes))
 
-        # posterior log probability, log P(c) + log P(x|c)
+        # Posterior log probability, log P(c) + log P(x|c)
         joint_likelihood = tf.add(priors, cond_probs)
 
-        # normalize to get (log)-probabilities
+        # Normalize to get (log)-probabilities
         norm_factor = tf.reduce_logsumexp(
             joint_likelihood, axis=1, keep_dims=True)
         log_prob = joint_likelihood - norm_factor
-        # exp to get the actual probabilities
-        return tf.exp(log_prob)
+
+        return tf.exp(log_prob) # exp to get the actual probabilities
+
 
 class StatMethods:
+    """Contains useful statistical methods for prob fusion"""
 
     @staticmethod
     def inverseVarMean(obs1, obs2, sD1, sD2):
-        #gets pass two arrays of observations to combine into a new array
+        """Takes two arrays of observations to combine into a new array
+            of measurements
+            
+            obs1 --array of measurements on attribute 1
+            obs2 --array of measurements on attrivute 2
+            sD1  --float representing standard devation of measurements 1
+            sD2  --float representing standard devation of measurements 2
+            """
         #sD1, sD2 are single floats
         var1 = sD1**2.0
         var2 = sD2**2.0
@@ -66,38 +81,42 @@ class StatMethods:
         weight1 = (1/var1)/((1/var1)+(1/var2))
         weight2 = (1/var2)/((1/var1)+(1/var2))
         newObs =[]
-        #import ipdb; ipdb.set_trace()
         for ob1, ob2 in zip(obs1, obs2):
             newObs.append(ob1*weight1 +ob2*weight2)
         return newObs
 
     @staticmethod
     def inverseVarSD(sD1, sD2):
+        """Create MAP measurement standard deviation on sD1 and sD2."""
         fusedSD = 1/(sD1**(-1) + sD2**(-1))
         return fusedSD
 
 
 class GenSigs:
+    """Creates artificial sensor returns"""
 
     @staticmethod
-    def getSenReturns(numSamples, hostile, friendly):
+    def getSenReturns(numSamples, hostile, friendly, seed = 1234):
+        """Generate artificial return based for IR and Radar sensors
+        based on sensor charcteristics and object being measured.
+        """
 
         # Create simulated radar returns and formate them for tensor flow
         hSizesRadar = GenSigs.drawFromNormDist(
                 numSamples, mean = hostile ['size'],
-                stddev = hostile ['sizeRadarSD'], seed = 1234)
+                stddev = hostile ['sizeRadarSD'], seed = seed)
         hTempRadar = GenSigs.drawFromNormDist(
                 numSamples, mean = hostile ['temp'], 
-                stddev = hostile ['tempRadarSD'], seed = 1235)
+                stddev = hostile ['tempRadarSD'], seed = seed + 1)
         radarReturnsHostile = np.array(
                 [[size, temp] for size, temp in zip(hSizesRadar, hTempRadar)], 
                 dtype = 'float64')
         fSizesRadar = GenSigs.drawFromNormDist(
                 numSamples, mean = friendly['size'],
-                stddev = friendly['sizeRadarSD'], seed = 1236)
+                stddev = friendly['sizeRadarSD'], seed = seed + 2)
         fTempRadar = GenSigs.drawFromNormDist(
                 numSamples, mean = friendly['temp'], 
-                stddev = friendly['tempRadarSD'], seed = 1237)
+                stddev = friendly['tempRadarSD'], seed = seed + 3)
         radarReturnsFriendly = np.array(
                 [[size, temp] for size, temp in zip(fSizesRadar, fTempRadar)], 
                 dtype = 'float64')
@@ -106,19 +125,19 @@ class GenSigs:
         # Create simulated ir returns and formate them for tensor flow
         hSizesIR = GenSigs.drawFromNormDist(
                 numSamples, mean = hostile ['size'], 
-                stddev = hostile ['sizeIRSD'], seed = 1238)
+                stddev = hostile ['sizeIRSD'], seed = seed + 4)
         hTempIR  = GenSigs.drawFromNormDist(
                 numSamples, mean = hostile ['temp'],
-                stddev = hostile ['tempIRSD'],seed = 1239)
+                stddev = hostile ['tempIRSD'],seed = seed + 5)
         irReturnsHostile = np.array(
                 [[size, temp] for size, temp in zip(hSizesIR, hTempIR)], 
                 dtype = 'float64')
         fSizesIR = GenSigs.drawFromNormDist(
                 numSamples, mean = friendly['size'], 
-                stddev = friendly['sizeIRSD'], seed = 1240)
+                stddev = friendly['sizeIRSD'], seed = seed + 6)
         fTempIR  = GenSigs.drawFromNormDist(
                 numSamples, mean = friendly['temp'], 
-                stddev = friendly['tempIRSD'],seed = 1241)
+                stddev = friendly['tempIRSD'],seed = seed + 7)
         irReturnsFriendly = np.array(
                 [[size, temp] for size, temp in zip(fSizesIR, fTempIR)], 
                 dtype = 'float64')
@@ -128,6 +147,9 @@ class GenSigs:
 
     @staticmethod
     def drawFromNormDist(numSamples, mean, stddev, seed):
+        """ Draw numSamples samples from a normal distrobution with params mean 
+            and stddev.
+        """
         sess = tf.Session()
         draws = sess.run(tf.random_normal([1, numSamples], mean=mean,
                          stddev=stddev, seed = seed))[0]
@@ -201,7 +223,7 @@ if __name__ == '__main__':
     s = tf.Session()
     Z = s.run(tf_nb.predict(np.c_[xx.ravel(), yy.ravel()]))
 
-    # Extract probabilities of class 2 and 3
+    # Extract probabilities of class 1 and 2
     Z1 = Z[:, 1].reshape(xx.shape)
 
     # Plot
@@ -213,7 +235,6 @@ if __name__ == '__main__':
     
     points = ax.scatter(x = X[10:, 0], y=X[10:, 1], c='blue', edgecolor='k', 
                         label = 'Friendly')
-
 
     if showPopMeans == True:
         points = ax.scatter(
