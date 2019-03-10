@@ -20,9 +20,10 @@ class TFNaiveBayesClassifier:
     dists = None
 
     def defineClasses(self, mean, sD):
-        # takes in matrix of class x features size for mean and standard deviation
+        # takes in matrix of class x features size for mean and 
+        #standard deviation
         mean = tf.convert_to_tensor(mean, dtype = 'float64')
-        sD   = tf.convert_to_tensor(sD  , dtype = 'float64')
+        sD   = tf.convert_to_tensor(sD,   dtype = 'float64')
 
         self.dists = tf.distributions.Normal(loc=mean, scale=sD) 
 
@@ -71,13 +72,13 @@ class StatMethods:
 
         return newObs
 
-class genSigs:
+class GenSigs:
 
     @staticmethod
     def drawFromNormDist(numSamples, mean, stddev, seed):
-        #seed = 1234
         sess = tf.Session()
-        draws = sess.run(tf.random_normal([1, numSamples], mean=mean, stddev=stddev, seed = seed))[0]
+        draws = sess.run(tf.random_normal([1, numSamples], mean=mean,
+                         stddev=stddev, seed = seed))[0]
 
         return draws
 
@@ -86,51 +87,56 @@ if __name__ == '__main__':
 
     # Create hostile radar
     numSamples = 10
-
-    #hostile =   {
-    #            'size':10, #meters
-    #            'sizeRadarSD':13.0, #meters
-    #            'sizeIRSD':20.0, #meters
-    #            'temp':100.0, #C
-    #            'tempRadarSD':100.0, #C
-    #            'tempIRSD':20.0 #C
-    #            }
-
-    #friendly =  {
-    #            'size':30, #meters
-    #            'sizeRadarSD':13.0, #meters
-    #            'sizeIRSD':20.0, #meters
-    #            'temp':80, #C
-    #            'tempRadarSD':100.0, #C
-    #            'tempIRSD':20.0 #C
-    #            }
+ 
+    # Create simulated radar returns and formate them for tensor flow
+    hSizesRadar = GenSigs.drawFromNormDist(numSamples, mean = hostile ['size'],
+                                            stddev = hostile ['sizeRadarSD'],
+                                            seed = 1234)
+    hTempRadar  = GenSigs.drawFromNormDist(numSamples, mean = hostile ['temp'], 
+                                           stddev = hostile ['tempRadarSD'],
+                                           seed = 1235)
+    radarReturnsHostile = np.array(
+            [[size, temp] for size, temp in zip(hSizesRadar, hTempRadar)], 
+            dtype = 'float64')
+    fSizesRadar = GenSigs.drawFromNormDist(numSamples, mean = friendly['size'],
+                                           stddev = friendly['sizeRadarSD'], 
+                                           seed = 1236)
+    fTempRadar  = GenSigs.drawFromNormDist(numSamples, mean = friendly['temp'], 
+                                           stddev = friendly['tempRadarSD'], 
+                                           seed = 1237)
+    radarReturnsFriendly = np.array(
+            [[size, temp] for size, temp in zip(fSizesRadar, fTempRadar)], 
+            dtype = 'float64')
     
-    # Radar returns
-    hSizesRadar = genSigs.drawFromNormDist(numSamples, mean = hostile ['size'], stddev = hostile ['sizeRadarSD'], seed = 1234)
-    hTempRadar  = genSigs.drawFromNormDist(numSamples, mean = hostile ['temp'], stddev = hostile ['tempRadarSD'], seed = 1235)
-    fSizesRadar = genSigs.drawFromNormDist(numSamples, mean = friendly['size'], stddev = friendly['sizeRadarSD'], seed = 1236)
-    fTempRadar  = genSigs.drawFromNormDist(numSamples, mean = friendly['temp'], stddev = friendly['tempRadarSD'], seed = 1237)
-    
-    # IR returns
-    hSizesIR = genSigs.drawFromNormDist(numSamples, mean = hostile ['size'], stddev = hostile ['sizeIRSD'], seed = 1238)
-    hTempIR  = genSigs.drawFromNormDist(numSamples, mean = hostile ['temp'], stddev = hostile ['tempIRSD'], seed = 1239)
-    fSizesIR = genSigs.drawFromNormDist(numSamples, mean = friendly['size'], stddev = friendly['sizeIRSD'], seed = 1240)
-    fTempIR  = genSigs.drawFromNormDist(numSamples, mean = friendly['temp'], stddev = friendly['tempIRSD'], seed = 1241)
+    # Create simulated ir returns and formate them for tensor flow
+    hSizesIR = GenSigs.drawFromNormDist(numSamples, mean = hostile ['size'],
+                                        stddev = hostile ['sizeIRSD'],
+                                        seed = 1238)
+    hTempIR  = GenSigs.drawFromNormDist(numSamples, mean = hostile ['temp'],
+                                        stddev = hostile ['tempIRSD'],
+                                        seed = 1239)
+    irReturnsHostile = np.array(
+            [[size, temp] for size, temp in zip(hSizesIR, hTempIR)], 
+            dtype = 'float64')
+    fSizesIR = GenSigs.drawFromNormDist(numSamples, mean = friendly['size'], 
+                                        stddev = friendly['sizeIRSD'], 
+                                        seed = 1240)
+    fTempIR  = GenSigs.drawFromNormDist(numSamples, mean = friendly['temp'],
+                                        stddev = friendly['tempIRSD'], 
+                                        seed = 1241)
+    irReturnsFriendly = np.array(
+            [[size, temp] for size, temp in zip(fSizesIR, fTempIR)], 
+            dtype = 'float64')
 
-    radarReturnsHostile = np.array([[size, temp] for size, temp in zip(hSizesRadar, hTempRadar)], dtype = 'float64')
-    radarReturnsFriendly = np.array([[size, temp] for size, temp in zip(fSizesRadar, fTempRadar)], dtype = 'float64')
-
-    irReturnsHostile = np.array([[size, temp] for size, temp in zip(hSizesIR, hTempIR)], dtype = 'float64')
-    irReturnsFriendly = np.array([[size, temp] for size, temp in zip(fSizesIR, fTempIR)], dtype = 'float64')
-
-    #import ipdb; ipdb.set_trace()
     xRadar = np.append(radarReturnsHostile, radarReturnsFriendly, axis = 0)
     xIR = np.append(irReturnsHostile, irReturnsFriendly, axis = 0)
     
     s = tf.Session()
 
-    fuseA1 = StatMethods.inverseVarFusion(xRadar[:,0], xIR[:,0], friendly['sizeRadarSD'], friendly['sizeIRSD'])
-    fuseA2 = StatMethods.inverseVarFusion(xRadar[:,1], xIR[:,1], friendly['tempRadarSD'], friendly['tempIRSD'])
+    fuseA1 = StatMethods.inverseVarFusion(xRadar[:,0], xIR[:,0], 
+            friendly['sizeRadarSD'], friendly['sizeIRSD'])
+    fuseA2 = StatMethods.inverseVarFusion(xRadar[:,1], xIR[:,1], 
+            friendly['tempRadarSD'], friendly['tempIRSD'])
 
     X = np.array([[att1, att2] for att1, att2 in zip(fuseA1, fuseA2)])
 
@@ -140,7 +146,9 @@ if __name__ == '__main__':
     y1 = np.ones(10)
     y2 = np.zeros(10)
 
-    mean = np.array([[hostile['size'], hostile['temp']],[friendly['size'], friendly['temp']]])
+    mean = np.array(
+            [[hostile['size'], hostile['temp']],
+            [friendly['size'], friendly['temp']]])
     
     sD =  np.array([[fuseSizeSD, fuseTempSD],[fuseSizeSD, fuseTempSD]])
 
@@ -154,7 +162,7 @@ if __name__ == '__main__':
 
     xx, yy = np.meshgrid(np.linspace(x_min, x_max, 300),
                          np.linspace(y_min, y_max, 300))
-    s = tf.Session()
+    #s = tf.Session()
     Z = s.run(tf_nb.predict(np.c_[xx.ravel(), yy.ravel()]))
 
     # Extract probabilities of class 2 and 3
@@ -165,14 +173,16 @@ if __name__ == '__main__':
     ax = fig.add_subplot(111)
 
 
-    points = ax.scatter(x = X[:10,0], y=X[:10, 1], c='red',
-                edgecolor='k', label = 'Hostile')
+    points = ax.scatter(x = X[:10,0], y=X[:10, 1], c='red', edgecolor='k', 
+                        label = 'Hostile')
     
-    points = ax.scatter(x = X[10:, 0], y=X[10:, 1], c='blue',
-                edgecolor='k', label = 'Friendly')
+    points = ax.scatter(x = X[10:, 0], y=X[10:, 1], c='blue', edgecolor='k', 
+                        label = 'Friendly')
 
-    points = ax.scatter(x = [friendly['size'], hostile['size']], 
-            y=[friendly['temp'], hostile['temp']], c='black', s=200, edgecolor='k', label = 'Population Means')
+    points = ax.scatter(
+            x = [friendly['size'], hostile['size']], y=[friendly['temp'], 
+            hostile['temp']], c='black', s=200, edgecolor='k', 
+            label = 'Population Means')
 
     # Swap signs to make the contour dashed (MPL default)
     ax.contour(xx, yy, -Z1, [-0.5], colors='k')
@@ -185,9 +195,6 @@ if __name__ == '__main__':
     #ax.set_xticks(())
     #ax.set_yticks(())
 
-    #Legend
-    #handles, labels = ax.get_legend_handles_labels()
-    #import ipdb; ipdb.set_trace()
     ax.legend()
 
     plt.tight_layout()
