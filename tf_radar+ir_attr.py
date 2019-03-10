@@ -136,16 +136,44 @@ class GenSigs:
 
 if __name__ == '__main__':
 
-    #Gets radar and ir returns
+    #params
+    fuseTemp = True
+    fuseSize = None #True
+    sizeSensor = 'fuse'
+    sizeSensor = sizeSensor.lower()
+    tempSensor = 'fuse'
+    tempSensor = tempSensor.lower()
     numSamples = 10
+    #options sizeSensor = radar, ir, fuse
+
+    #Gets radar and ir returns
     xRadar, xIR = GenSigs.getSenReturns(numSamples, hostile, friendly)
 
     #Fuse attributes using inverseVar result is MAP
-    fuseSize = StatMethods.inverseVarMean(xRadar[:,0], xIR[:,0], 
-            friendly['sizeRadarSD'], friendly['sizeIRSD'])
-    fuseTemp = StatMethods.inverseVarMean(xRadar[:,1], xIR[:,1], 
-            friendly['tempRadarSD'], friendly['tempIRSD'])
-    X = np.array([[att1, att2] for att1, att2 in zip(fuseSize, fuseTemp)])
+    if sizeSensor == 'fuse':
+            #Fuse attributes using inverseVar result is MAP
+        sizeMeasurements = StatMethods.inverseVarMean(xRadar[:,0], xIR[:,0], 
+                friendly['sizeRadarSD'], friendly['sizeIRSD'])
+    elif sizeSensor == 'radar':
+        sizeMeasurements = xRadar[:,0]
+    elif sizeSensor == 'ir':
+        sizeMeasurements = xIR[:,0]
+    else:
+        raise "no size sensor specified"
+
+    if tempSensor == 'fuse':
+            #Fuse attributes using inverseVar result is MAP
+        tempMeasurements = StatMethods.inverseVarMean(xRadar[:,1], xIR[:,1], 
+                friendly['tempRadarSD'], friendly['tempIRSD'])
+    elif tempSensor == 'radar':
+        tempMeasurements = xRadar[:,1]
+    elif tempSensor == 'ir':
+        tempMeasurements = xIR[:,1]
+    else:
+        raise "no temp sensor specified"
+
+    X = np.array([[att1, att2] for att1, att2 in 
+                zip(sizeMeasurements, tempMeasurements)])
 
     fuseSizeSD = StatMethods.inverseVarSD(hostile['sizeRadarSD'], 
                                           hostile['sizeIRSD'])
