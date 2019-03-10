@@ -139,12 +139,15 @@ if __name__ == '__main__':
     #params
     fuseTemp = True
     fuseSize = None #True
+    
+    #options sizeSensor = radar, ir, fuse
     sizeSensor = 'fuse'
     sizeSensor = sizeSensor.lower()
-    tempSensor = 'fuse'
+    tempSensor = 'radar'
     tempSensor = tempSensor.lower()
+    
     numSamples = 10
-    #options sizeSensor = radar, ir, fuse
+    showPopMeans = True
 
     #Gets radar and ir returns
     xRadar, xIR = GenSigs.getSenReturns(numSamples, hostile, friendly)
@@ -159,7 +162,7 @@ if __name__ == '__main__':
     elif sizeSensor == 'ir':
         sizeMeasurements = xIR[:,0]
     else:
-        raise "no size sensor specified"
+        raise "Size sensor must be: radar, ir, or fuse."
 
     if tempSensor == 'fuse':
             #Fuse attributes using inverseVar result is MAP
@@ -170,7 +173,7 @@ if __name__ == '__main__':
     elif tempSensor == 'ir':
         tempMeasurements = xIR[:,1]
     else:
-        raise "no temp sensor specified"
+        raise "Temperature sensor must be: radar, ir, or fuse."
 
     X = np.array([[att1, att2] for att1, att2 in 
                 zip(sizeMeasurements, tempMeasurements)])
@@ -211,10 +214,12 @@ if __name__ == '__main__':
     points = ax.scatter(x = X[10:, 0], y=X[10:, 1], c='blue', edgecolor='k', 
                         label = 'Friendly')
 
-    points = ax.scatter(
-            x = [friendly['size'], hostile['size']], y=[friendly['temp'], 
-            hostile['temp']], c='black', s=200, edgecolor='k', 
-            label = 'Population Means')
+
+    if showPopMeans == True:
+        points = ax.scatter(
+                x = [friendly['size'], hostile['size']], y=[friendly['temp'], 
+                hostile['temp']], c='black', s=200, edgecolor='k', 
+                label = 'Population Means')
 
     # Swap signs to make the contour dashed (MPL default)
     ax.contour(xx, yy, -Z1, [-0.5], colors='k')
