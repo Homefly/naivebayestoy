@@ -86,7 +86,7 @@ class GenSigs:
         hSizesRadar = GenSigs.drawFromNormDist(
                 numSamples, mean = hostile ['size'],
                 stddev = hostile ['sizeRadarSD'], seed = 1234)
-        hTempRadar  = GenSigs.drawFromNormDist(
+        hTempRadar = GenSigs.drawFromNormDist(
                 numSamples, mean = hostile ['temp'], 
                 stddev = hostile ['tempRadarSD'], seed = 1235)
         radarReturnsHostile = np.array(
@@ -95,7 +95,7 @@ class GenSigs:
         fSizesRadar = GenSigs.drawFromNormDist(
                 numSamples, mean = friendly['size'],
                 stddev = friendly['sizeRadarSD'], seed = 1236)
-        fTempRadar  = GenSigs.drawFromNormDist(
+        fTempRadar = GenSigs.drawFromNormDist(
                 numSamples, mean = friendly['temp'], 
                 stddev = friendly['tempRadarSD'], seed = 1237)
         radarReturnsFriendly = np.array(
@@ -104,21 +104,21 @@ class GenSigs:
         xRadar = np.append(radarReturnsHostile, radarReturnsFriendly, axis = 0)
         
         # Create simulated ir returns and formate them for tensor flow
-        hSizesIR = GenSigs.drawFromNormDist(numSamples, mean = hostile ['size'],
-                                            stddev = hostile ['sizeIRSD'],
-                                            seed = 1238)
-        hTempIR  = GenSigs.drawFromNormDist(numSamples, mean = hostile ['temp'],
-                                            stddev = hostile ['tempIRSD'],
-                                            seed = 1239)
+        hSizesIR = GenSigs.drawFromNormDist(
+                numSamples, mean = hostile ['size'], 
+                stddev = hostile ['sizeIRSD'], seed = 1238)
+        hTempIR  = GenSigs.drawFromNormDist(
+                numSamples, mean = hostile ['temp'],
+                stddev = hostile ['tempIRSD'],seed = 1239)
         irReturnsHostile = np.array(
                 [[size, temp] for size, temp in zip(hSizesIR, hTempIR)], 
                 dtype = 'float64')
-        fSizesIR = GenSigs.drawFromNormDist(numSamples, mean = friendly['size'], 
-                                            stddev = friendly['sizeIRSD'], 
-                                            seed = 1240)
-        fTempIR  = GenSigs.drawFromNormDist(numSamples, mean = friendly['temp'],
-                                            stddev = friendly['tempIRSD'], 
-                                            seed = 1241)
+        fSizesIR = GenSigs.drawFromNormDist(
+                numSamples, mean = friendly['size'], 
+                stddev = friendly['sizeIRSD'], seed = 1240)
+        fTempIR  = GenSigs.drawFromNormDist(
+                numSamples, mean = friendly['temp'], 
+                stddev = friendly['tempIRSD'],seed = 1241)
         irReturnsFriendly = np.array(
                 [[size, temp] for size, temp in zip(fSizesIR, fTempIR)], 
                 dtype = 'float64')
