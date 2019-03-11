@@ -95,26 +95,27 @@ class StatMethods:
 class GenSigs:
     """Creates artificial sensor returns"""
 
-    @staticmethod
-    def getSenReturns(numSamples, hostile, friendly, seed = 1234):
+    from sensor_config import friendly, hostile
+
+    def getSenReturns(self, numSamples, seed = 1234):
         """Generate artificial return based for IR and Radar sensors
         based on sensor charcteristics and object being measured.
         """
 
         # Create simulated radar returns and formate them for tensor flow
-        hSizesRadar = GenSigs.drawFromNormDist(
+        hSizesRadar = self.drawFromNormDist(
                 numSamples, mean = hostile ['size'],
                 stddev = hostile ['sizeRadarSD'], seed = seed)
-        hTempRadar = GenSigs.drawFromNormDist(
+        hTempRadar = self.drawFromNormDist(
                 numSamples, mean = hostile ['temp'], 
                 stddev = hostile ['tempRadarSD'], seed = seed + 1)
         radarReturnsHostile = np.array(
                 [[size, temp] for size, temp in zip(hSizesRadar, hTempRadar)], 
                 dtype = 'float64')
-        fSizesRadar = GenSigs.drawFromNormDist(
+        fSizesRadar = self.drawFromNormDist(
                 numSamples, mean = friendly['size'],
                 stddev = friendly['sizeRadarSD'], seed = seed + 2)
-        fTempRadar = GenSigs.drawFromNormDist(
+        fTempRadar = self.drawFromNormDist(
                 numSamples, mean = friendly['temp'], 
                 stddev = friendly['tempRadarSD'], seed = seed + 3)
         radarReturnsFriendly = np.array(
@@ -123,19 +124,19 @@ class GenSigs:
         xRadar = np.append(radarReturnsHostile, radarReturnsFriendly, axis = 0)
         
         # Create simulated ir returns and formate them for tensor flow
-        hSizesIR = GenSigs.drawFromNormDist(
+        hSizesIR = self.drawFromNormDist(
                 numSamples, mean = hostile ['size'], 
                 stddev = hostile ['sizeIRSD'], seed = seed + 4)
-        hTempIR  = GenSigs.drawFromNormDist(
+        hTempIR  = self.drawFromNormDist(
                 numSamples, mean = hostile ['temp'],
                 stddev = hostile ['tempIRSD'],seed = seed + 5)
         irReturnsHostile = np.array(
                 [[size, temp] for size, temp in zip(hSizesIR, hTempIR)], 
                 dtype = 'float64')
-        fSizesIR = GenSigs.drawFromNormDist(
+        fSizesIR = self.drawFromNormDist(
                 numSamples, mean = friendly['size'], 
                 stddev = friendly['sizeIRSD'], seed = seed + 6)
-        fTempIR  = GenSigs.drawFromNormDist(
+        fTempIR  = self.drawFromNormDist(
                 numSamples, mean = friendly['temp'], 
                 stddev = friendly['tempIRSD'],seed = seed + 7)
         irReturnsFriendly = np.array(
@@ -145,78 +146,124 @@ class GenSigs:
         
         return xRadar, xIR
 
-    @staticmethod
-    def drawFromNormDist(numSamples, mean, stddev, seed):
+    def drawFromNormDist(self, numSamples, mean, stddev, seed):
         """ Draw numSamples samples from a normal distrobution with params mean 
             and stddev.
         """
         sess = tf.Session()
-        draws = sess.run(tf.random_normal([1, numSamples], mean=mean,
-                         stddev=stddev, seed = seed))[0]
+        draws = sess.run(tf.random_normal([1, numSamples], mean=mean, stddev=stddev, seed=seed))[0]
         return draws
 
+    def getAtributeMeasurements(
+            self, sizeSensor, tempSensor, irMeasurements, radarMeasurements):
+        """gets fused or unfused attribute measurements.
+        
+            sizeSensor takes options: 'radar', 'ir', or 'fuse' 
+            tempSensor takes options: 'radar', 'ir', or 'fuse' 
+        """
+
+        sizeSensor = sizeSensor.lower()
+        tempSensor = tempSensor.lower()
+
+        #Fuse attributes using inverseVar result is MAP
+        if sizeSensor == 'fuse':
+                #Fuse attributes using inverseVar result is MAP
+            sizeMeasurements = StatMethods.inverseVarMean(
+                    radarMeasurements[:,0], irMeasurements[:,0],
+                    friendly['sizeRadarSD'], friendly['sizeIRSD'])
+        elif sizeSensor == 'radar':
+            sizeMeasurements = radarMeasurements[:,0]
+        elif sizeSensor == 'ir':
+            sizeMeasurements = irMeasurements[:,0]
+        else:
+            raise "Size sensor must be: radar, ir, or fuse."
+
+        #Fuse attributes using inverseVar result is MAP
+        if tempSensor == 'fuse':
+            tempMeasurements = StatMethods.inverseVarMean(
+                    radarMeasurements[:,1], irMeasurements[:,1],
+                    friendly['tempRadarSD'], friendly['tempIRSD'])
+        elif tempSensor == 'radar':
+            tempMeasurements = radarMeasurements[:,1]
+        elif tempSensor == 'ir':
+            tempMeasurements = irMeasurements[:,1]
+        else:
+            raise "Temperature sensor must be: radar, ir, or fuse."
+
+        fusedReturns = np.array([[att1, att2] for att1, att2 in 
+                    zip(sizeMeasurements, tempMeasurements)])
+
+        return fusedReturns
+
+    def getAttributeSD(self, sizeSensor, tempSensor):
+        """ Gets SD of Attribute messages
+
+            sizeSensor takes options: 'radar', 'ir', or 'fuse' 
+            tempSensor takes options: 'radar', 'ir', or 'fuse' 
+        """
+
+        sizeSensor = sizeSensor.lower()
+        tempSensor = tempSensor.lower()
+
+        if sizeSensor == 'fuse':
+            sizeSD = StatMethods.inverseVarSD(hostile['sizeRadarSD'], 
+                                              hostile['sizeIRSD'])
+        elif sizeSensor == 'radar':
+            sizeSD = hostile['sizeRadarSD']
+        elif sizeSensor == 'ir':
+            sizeSD = hostile['sizeIRSD']
+        else:
+            raise "Size sensor must be: radar, ir, or fuse."
+
+        if tempSensor == 'fuse':
+            tempSD = StatMethods.inverseVarSD(hostile['tempRadarSD'], 
+                                              hostile['tempIRSD'])
+        elif tempSensor == 'radar':
+            tempSD = hostile['tempRadarSD']
+        elif tempSensor == 'ir':
+            tempSD = hostile['tempIRSD']
+        else:
+            raise "Temperature sensor must be: radar, ir, or fuse."
+
+        return sizeSD, tempSD
 
 if __name__ == '__main__':
 
     #params
     fuseTemp = True
-    fuseSize = None #True
-    
-    #options sizeSensor = radar, ir, fuse
+    fuseSize = None
+
     sizeSensor = 'fuse'
-    sizeSensor = sizeSensor.lower()
     tempSensor = 'radar'
-    tempSensor = tempSensor.lower()
     
     numSamples = 10
     showPopMeans = True
 
-    #Gets radar and ir returns
-    xRadar, xIR = GenSigs.getSenReturns(numSamples, hostile, friendly)
+    # Import sensor and objects characteristics
+    sigs = GenSigs()
 
-    #Fuse attributes using inverseVar result is MAP
-    if sizeSensor == 'fuse':
-            #Fuse attributes using inverseVar result is MAP
-        sizeMeasurements = StatMethods.inverseVarMean(xRadar[:,0], xIR[:,0], 
-                friendly['sizeRadarSD'], friendly['sizeIRSD'])
-    elif sizeSensor == 'radar':
-        sizeMeasurements = xRadar[:,0]
-    elif sizeSensor == 'ir':
-        sizeMeasurements = xIR[:,0]
-    else:
-        raise "Size sensor must be: radar, ir, or fuse."
+    # Gets radar and ir returns
+    radarMeasurements, irMeasurements = sigs.getSenReturns(numSamples)
 
-    if tempSensor == 'fuse':
-            #Fuse attributes using inverseVar result is MAP
-        tempMeasurements = StatMethods.inverseVarMean(xRadar[:,1], xIR[:,1], 
-                friendly['tempRadarSD'], friendly['tempIRSD'])
-    elif tempSensor == 'radar':
-        tempMeasurements = xRadar[:,1]
-    elif tempSensor == 'ir':
-        tempMeasurements = xIR[:,1]
-    else:
-        raise "Temperature sensor must be: radar, ir, or fuse."
+    # Get fused returns 
+    fusedReturns = sigs.getAtributeMeasurements(
+            sizeSensor, tempSensor, irMeasurements, radarMeasurements)
 
-    X = np.array([[att1, att2] for att1, att2 in 
-                zip(sizeMeasurements, tempMeasurements)])
-
-    fuseSizeSD = StatMethods.inverseVarSD(hostile['sizeRadarSD'], 
-                                          hostile['sizeIRSD'])
-    fuseTempSD = StatMethods.inverseVarSD(hostile['tempRadarSD'], 
-                                          hostile['tempIRSD'])
+    # Get MAP fused SD
+    sizeSD, tempSD = sigs.getAttributeSD(sizeSensor, tempSensor)
 
     mean = np.array(
             [[hostile['size'], hostile['temp']],
             [friendly['size'], friendly['temp']]])
     
-    sD =  np.array([[fuseSizeSD, fuseTempSD],[fuseSizeSD, fuseTempSD]])
+    sD =  np.array([[sizeSD, tempSD],[sizeSD, tempSD]])
 
     tf_nb = TFNaiveBayesClassifier()
     tf_nb.defineClasses(mean, sD)
 
     # Create a regular grid and classify each point
-    x_min, x_max = X[:, 0].min() - 10, X[:, 0].max() + 10
-    y_min, y_max = X[:, 1].min() - 10, X[:, 1].max() + 10
+    x_min, x_max = fusedReturns[:, 0].min() - 10, fusedReturns[:, 0].max() + 10
+    y_min, y_max = fusedReturns[:, 1].min() - 10, fusedReturns[:, 1].max() + 10
     xx, yy = np.meshgrid(np.linspace(x_min, x_max, 300),
                          np.linspace(y_min, y_max, 300))
     
@@ -230,11 +277,11 @@ if __name__ == '__main__':
     fig = plt.figure(figsize=(5, 3.75))
     ax = fig.add_subplot(111)
 
-    points = ax.scatter(x = X[:10,0], y=X[:10, 1], c='red', edgecolor='k', 
-                        label = 'Hostile')
+    points = ax.scatter(x = fusedReturns[:10,0], y=fusedReturns[:10, 1], 
+            c='red', edgecolor='k', label = 'Hostile')
     
-    points = ax.scatter(x = X[10:, 0], y=X[10:, 1], c='blue', edgecolor='k', 
-                        label = 'Friendly')
+    points = ax.scatter(x = fusedReturns[10:, 0], y=fusedReturns[10:, 1], 
+            c='blue', edgecolor='k', label = 'Friendly')
 
     if showPopMeans == True:
         points = ax.scatter(
