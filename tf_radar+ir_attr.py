@@ -61,8 +61,13 @@ class TFNaiveBayesClassifier:
         return tf.exp(log_prob) # exp to get the actual probabilities
 
     def createClassGrid(self, mean, sD, xRange, yRange):
+        """ Creates a 2D grid of values and returns the class probabilities
+            on those values
+
+            xRange = [x_min, x_max]
+            yRange = [y_min, y_max]
+            """
         # Create grid of P(C|x) points for each class
-        #tf_nb = TFNaiveBayesClassifier()
         self.defineClasses(mean, sD)
 
         # Create a regular grid and classify each point
