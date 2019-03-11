@@ -60,6 +60,24 @@ class TFNaiveBayesClassifier:
 
         return tf.exp(log_prob) # exp to get the actual probabilities
 
+    def createClassGrid(self, mean, sD, xRange, yRange):
+        # Create grid of P(C|x) points for each class
+        #tf_nb = TFNaiveBayesClassifier()
+        self.defineClasses(mean, sD)
+
+        # Create a regular grid and classify each point
+        xx, yy = np.meshgrid(np.linspace(xRange[0], xRange[1], 300),
+                             np.linspace(yRange[1], yRange[1], 300))
+
+        s = tf.Session()
+        Z = s.run(tf_nb.predict(np.c_[xx.ravel(), yy.ravel()]))
+
+        # Extract probabilities of class 1 and 2
+        cProbs = Z[:, 1].reshape(xx.shape)
+
+        return cProbs, xx, yy
+
+
 
 class StatMethods:
     """Contains useful statistical methods for prob fusion"""
@@ -156,7 +174,7 @@ class GenSigs:
 
     def getAtributeMeasurements(
             self, sizeSensor, tempSensor, irMeasurements, radarMeasurements):
-        """gets fused or unfused attribute measurements.
+        """ Gets fused or unfused attribute measurements.
         
             sizeSensor takes options: 'radar', 'ir', or 'fuse' 
             tempSensor takes options: 'radar', 'ir', or 'fuse' 
@@ -229,7 +247,7 @@ class GenSigs:
 
 if __name__ == '__main__':
 
-    #params
+    # Params
     fuseTemp = True
     fuseSize = None
 
@@ -238,6 +256,9 @@ if __name__ == '__main__':
     
     numSamples = 10
     showPopMeans = True
+
+    saveFig = False
+    saveLoc = '~/Radar_and_IR_Attribute_Decision_Boundary.fig'
 
     # Import sensor and objects characteristics
     sigs = GenSigs()
@@ -258,22 +279,14 @@ if __name__ == '__main__':
     
     sD =  np.array([[sizeSD, tempSD],[sizeSD, tempSD]])
 
-    tf_nb = TFNaiveBayesClassifier()
-    tf_nb.defineClasses(mean, sD)
-
-    # Create a regular grid and classify each point
     x_min, x_max = fusedReturns[:, 0].min() - 10, fusedReturns[:, 0].max() + 10
     y_min, y_max = fusedReturns[:, 1].min() - 10, fusedReturns[:, 1].max() + 10
-    xx, yy = np.meshgrid(np.linspace(x_min, x_max, 300),
-                         np.linspace(y_min, y_max, 300))
-    
-    s = tf.Session()
-    Z = s.run(tf_nb.predict(np.c_[xx.ravel(), yy.ravel()]))
 
-    # Extract probabilities of class 1 and 2
-    Z1 = Z[:, 1].reshape(xx.shape)
+    tf_nb = TFNaiveBayesClassifier()
+    gridCProbs, xx, yy = tf_nb.createClassGrid(
+            mean, sD, xRange = [x_min, x_max], yRange = [y_min, y_max])
 
-    # Plot
+        # Plot
     fig = plt.figure(figsize=(5, 3.75))
     ax = fig.add_subplot(111)
 
@@ -290,16 +303,17 @@ if __name__ == '__main__':
                 label = 'Population Means')
 
     # Swap signs to make the contour dashed (MPL default)
-    ax.contour(xx, yy, -Z1, [-0.5], colors='k')
+    ax.contour(xx, yy, -gridCProbs, [-0.5], colors='k')
 
     ax.set_xlabel('Size (m)')
     ax.set_ylabel('Temp (C)')
     ax.set_title('Radar and IR Attribute Decision Boundary')
     ax.set_xlim(x_min, x_max)
     ax.set_ylim(y_min, y_max)
-
     ax.legend()
-
     plt.tight_layout()
     plt.show()
-    fig.savefig('____', bbox_inches='tight')
+    
+    if saveFig == True:
+        fig.savefig(saveLoc, bbox_inches='tight')
+
