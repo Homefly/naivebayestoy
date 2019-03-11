@@ -259,6 +259,7 @@ if __name__ == '__main__':
     fuseTemp = True
     fuseSize = None
 
+    # Options: 'fuse', 'radar', 'ir'
     sizeSensor = 'fuse'
     tempSensor = 'radar'
     
