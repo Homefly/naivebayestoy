@@ -16,8 +16,9 @@ import numpy as np
 from sensor_config import friendly, hostile
 
 
-class TFNaiveBayesClassifier:
+class AttributeNaiveBayesClassifier:
     """Creates and makes predictions with a niave bayesian classifier"""
+
     dists = None
 
     def defineClasses(self, mean, sD):
@@ -86,6 +87,7 @@ class TFNaiveBayesClassifier:
 
 class StatMethods:
     """Contains useful statistical methods for prob fusion"""
+
 
     @staticmethod
     def inverseVarMean(obs1, obs2, sD1, sD2):
@@ -174,7 +176,8 @@ class GenSigs:
             and stddev.
         """
         sess = tf.Session()
-        draws = sess.run(tf.random_normal([1, numSamples], mean=mean, stddev=stddev, seed=seed))[0]
+        draws = sess.run(tf.random_normal(
+            [1, numSamples], mean=mean, stddev=stddev, seed=seed))[0]
         return draws
 
     def getAtributeMeasurements(
@@ -275,23 +278,21 @@ if __name__ == '__main__':
     fusedReturns = sigs.getAtributeMeasurements(
             sizeSensor, tempSensor, irMeasurements, radarMeasurements)
 
-    # Get MAP fused SD
-    sizeSD, tempSD = sigs.getAttributeSD(sizeSensor, tempSensor)
-
     mean = np.array(
             [[hostile['size'], hostile['temp']],
             [friendly['size'], friendly['temp']]])
-    
+
+    # Get MAP fused SD
+    sizeSD, tempSD = sigs.getAttributeSD(sizeSensor, tempSensor)
     sD =  np.array([[sizeSD, tempSD],[sizeSD, tempSD]])
 
     x_min, x_max = fusedReturns[:, 0].min() - 10, fusedReturns[:, 0].max() + 10
     y_min, y_max = fusedReturns[:, 1].min() - 10, fusedReturns[:, 1].max() + 10
-
-    tf_nb = TFNaiveBayesClassifier()
+    tf_nb = AttributeNaiveBayesClassifier()
     gridCProbs, xx, yy = tf_nb.createClassGrid(
             mean, sD, xRange = [x_min, x_max], yRange = [y_min, y_max])
 
-        # Plot
+    # Plot
     fig = plt.figure(figsize=(5, 3.75))
     ax = fig.add_subplot(111)
 
