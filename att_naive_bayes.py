@@ -10,6 +10,7 @@ from sklearn import datasets
 import numpy as np
 import tensorflow as tf
 from sklearn.utils.fixes import logsumexp
+from sklearn.metrics import precision_recall_curve
 import numpy as np
 
 #first party
@@ -76,13 +77,12 @@ class AttributeNaiveBayesClassifier:
                              np.linspace(yRange[1], yRange[1], 300))
 
         s = tf.Session()
-        Z = s.run(tf_nb.predict(np.c_[xx.ravel(), yy.ravel()]))
+        Z = s.run(self.predict(np.c_[xx.ravel(), yy.ravel()]))
 
         # Extract probabilities of class 1 and 2
         cProbs = Z[:, 1].reshape(xx.shape)
 
         return cProbs, xx, yy
-
 
 
 class StatMethods:
@@ -263,7 +263,7 @@ if __name__ == '__main__':
     sizeSensor = 'fuse'
     tempSensor = 'radar'
     
-    numSamples = 10
+    numSamples = 100
     showPopMeans = True
 
     saveFig = False
@@ -279,6 +279,7 @@ if __name__ == '__main__':
     fusedReturns = sigs.getAtributeMeasurements(
             sizeSensor, tempSensor, irMeasurements, radarMeasurements)
 
+    #import ipdb; ipdb.set_trace()
     mean = np.array(
             [[hostile['size'], hostile['temp']],
             [friendly['size'], friendly['temp']]])
@@ -293,14 +294,20 @@ if __name__ == '__main__':
     gridCProbs, xx, yy = tf_nb.createClassGrid(
             mean, sD, xRange = [x_min, x_max], yRange = [y_min, y_max])
 
+    #Get target class probabilities
+    #s = tf.Session()
+    #classProbs = tf_nb.predict(fusedReturns)
+    #classProbs = s.run(tf_nb.predict(fusedReturns)) 
+    #import ipdb; ipdb.set_trace()
+
     # Plot
     fig = plt.figure(figsize=(5, 3.75))
     ax = fig.add_subplot(111)
 
-    points = ax.scatter(x = fusedReturns[:10,0], y=fusedReturns[:10, 1], 
+    points = ax.scatter(x = fusedReturns[:numSamples,0], y=fusedReturns[:numSamples, 1], 
             c='red', edgecolor='k', label = 'Hostile')
     
-    points = ax.scatter(x = fusedReturns[10:, 0], y=fusedReturns[10:, 1], 
+    points = ax.scatter(x = fusedReturns[numSamples:, 0], y=fusedReturns[numSamples:, 1], 
             c='blue', edgecolor='k', label = 'Friendly')
 
     if showPopMeans == True:
@@ -324,3 +331,32 @@ if __name__ == '__main__':
     if saveFig == True:
         fig.savefig(saveLoc, bbox_inches='tight')
 
+    #Get target class probabilities fused
+    s = tf.Session()
+    predClass = s.run(tf_nb.predict(fusedReturns)) 
+    
+    numPerClas = len(predClass)/2
+    trueClass = np.concatenate(
+            (np.array([[1]*numSamples, [0]*numSamples]), np.array([[0]*numSamples, [1]*numSamples])), axis = 1)
+
+    precision, recall, thresholds = precision_recall_curve(trueClass[0,:], predClass.T[0,:])
+
+    # plot the precision-recall curve for the model
+    plt.plot(recall, precision, marker='.')
+    plt.title("Precision Recall Curve Fused Data")
+    plt.xlabel('Precision')
+    plt.ylabel('Recall')
+    plt.show()
+
+    #Get target class probabilities IR only
+    s = tf.Session()
+    predClassIR = s.run(tf_nb.predict(irMeasurements)) 
+
+    precisionIR, recallIR, thresholds = precision_recall_curve(trueClass[0,:], predClassIR.T[0,:])
+
+    # plot the precision-recall curve for the model
+    plt.plot(recallIR, precisionIR, marker='.')
+    plt.title("Precision Recall Curve IR Data")
+    plt.xlabel('Precision')
+    plt.ylabel('Recall')
+    plt.show()
